@@ -9,60 +9,62 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
-from auto_encoder import AutoEncoder
+from auto_encoder.model import AutoEncoder
 
 
-# Data preparation
-transform = transforms.ToTensor()
-train_dataset = datasets.MNIST(
-    root="./data", train=True, download=True, transform=transform
-)
-val_dataset = datasets.MNIST(
-    root="./data", train=False, download=True, transform=transform
-)
+def train_autoencoder(
+    train_loader,
+    val_loader,
+    latent_dim=32,
+    batch_size=128,
+    epochs=100,
+    lr=1e-3,
+    model_save_path="autoencoder_mnist.pth",
+    device=None,
+):
 
-train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
+    # Model, loss, optimizer
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = AutoEncoder(latent_dim=latent_dim).to(device)
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
-# Model, loss, optimizer
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = AutoEncoder(latent_dim=32).to(device)
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
-
-# Training loop
-epochs = 100
-for epoch in range(epochs):
-    model.train()
-    total_loss = 0
-    for imgs, _ in train_loader:
-        imgs = imgs.to(device)
-        optimizer.zero_grad()
-        recon, _ = model(imgs)
-        loss = criterion(recon, imgs)
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item() * imgs.size(0)
-    avg_train_loss = total_loss / len(train_loader.dataset)
-
-    # Validation loss
-    model.eval()
-    val_loss = 0
-    with torch.no_grad():
-        for imgs, _ in val_loader:
+    # Training loop
+    for epoch in range(epochs):
+        model.train()
+        total_loss = 0
+        for imgs, _ in train_loader:
             imgs = imgs.to(device)
+            optimizer.zero_grad()
             recon, _ = model(imgs)
             loss = criterion(recon, imgs)
-            val_loss += loss.item() * imgs.size(0)
-    avg_val_loss = val_loss / len(val_loader.dataset)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item() * imgs.size(0)
+        avg_train_loss = total_loss / len(train_loader.dataset)
 
-    print(
-        f"Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}"
-    )
+        # Validation loss
+        model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for imgs, _ in val_loader:
+                imgs = imgs.to(device)
+                recon, _ = model(imgs)
+                loss = criterion(recon, imgs)
+                val_loss += loss.item() * imgs.size(0)
+        avg_val_loss = val_loss / len(val_loader.dataset)
+
+        print(
+            f"Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}"
+        )
+    # Save the model
+    torch.save(model.state_dict(), model_save_path)
+    return model
 
 
 # Function to save representations
-def save_representations(loader, split_name):
+def save_representations(model, loader, device, split_name):
     model.eval()
     reps_by_label = {i: [] for i in range(10)}
     with torch.no_grad():
@@ -78,31 +80,20 @@ def save_representations(loader, split_name):
         np.save(f"representations/{split_name}_label_{label}.npy", reps)
 
 
-# Save representations for train and validation sets
-save_representations(DataLoader(train_dataset, batch_size=256, shuffle=False), "train")
-save_representations(DataLoader(val_dataset, batch_size=256, shuffle=False), "val")
-# Visualize a random image and its reconstruction from the validation set
+if __name__ == "__main__":
+    transform = transforms.ToTensor()
 
+    train_dataset = datasets.MNIST(
+        root="./data", train=True, download=True, transform=transform
+    )
+    val_dataset = datasets.MNIST(
+        root="./data", train=False, download=True, transform=transform
+    )
+    # Data preparation
+    train_loader = DataLoader(train_dataset, batch_size=256, shuffle=False)
+    val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = train_autoencoder(train_loader=train_loader, val_loader=val_loader)
 
-model.eval()
-idx = random.randint(0, len(val_dataset) - 1)
-img, _ = val_dataset[idx]
-img_input = img.unsqueeze(0).to(device)
-with torch.no_grad():
-    recon, _ = model(img_input)
-recon_img = recon.cpu().squeeze().numpy()
-orig_img = img.squeeze().numpy()
-
-fig, axs = plt.subplots(1, 2, figsize=(6, 3))
-axs[0].imshow(orig_img, cmap="gray")
-axs[0].set_title("Original")
-axs[0].axis("off")
-axs[1].imshow(recon_img, cmap="gray")
-axs[1].set_title("Reconstruction")
-axs[1].axis("off")
-plt.tight_layout()
-plt.savefig("reconstruction_example.png")
-plt.close()
-
-# Save the model
-torch.save(model.state_dict(), "autoencoder_mnist.pth")
+    save_representations(model, train_loader, device, "train")
+    save_representations(model, val_loader, device, "val")
