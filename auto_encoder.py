@@ -45,7 +45,7 @@ criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 # Training loop
-epochs = 10
+epochs = 100
 for epoch in range(epochs):
     model.train()
     total_loss = 0
