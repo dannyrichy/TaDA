@@ -10,13 +10,13 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 from auto_encoder.model import AutoEncoder
+from auto_encoder.visualise import visualise
 
 
 def train_autoencoder(
     train_loader,
     val_loader,
     latent_dim=32,
-    batch_size=128,
     epochs=100,
     lr=1e-3,
     model_save_path="autoencoder_mnist.pth",
@@ -81,19 +81,21 @@ def save_representations(model, loader, device, split_name):
 
 
 if __name__ == "__main__":
-    transform = transforms.ToTensor()
+    # transform = transforms.ToTensor()
 
-    train_dataset = datasets.MNIST(
-        root="./data", train=True, download=True, transform=transform
-    )
-    val_dataset = datasets.MNIST(
-        root="./data", train=False, download=True, transform=transform
-    )
-    # Data preparation
-    train_loader = DataLoader(train_dataset, batch_size=256, shuffle=False)
-    val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = train_autoencoder(train_loader=train_loader, val_loader=val_loader)
+    # train_dataset = datasets.MNIST(
+    #     root="./data", train=True, download=True, transform=transform
+    # )
+    # val_dataset = datasets.MNIST(
+    #     root="./data", train=False, download=True, transform=transform
+    # )
+    # # Data preparation
+    # train_loader = DataLoader(train_dataset, batch_size=256, shuffle=False)
+    # val_loader = DataLoader(val_dataset, batch_size=256, shuffle=False)
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # model = train_autoencoder(train_loader=train_loader, val_loader=val_loader)
 
-    save_representations(model, train_loader, device, "train")
-    save_representations(model, val_loader, device, "val")
+    # save_representations(model, train_loader, device, "train")
+    # save_representations(model, val_loader, device, "val")
+    
+    visualise()

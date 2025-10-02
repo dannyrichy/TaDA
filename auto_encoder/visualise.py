@@ -7,7 +7,7 @@ from torchvision.datasets import MNIST
 from torchvision import transforms
 
 
-def visualize_random_reconstruction(
+def visualise(
     model_path="autoencoder_mnist.pth", dataset_root="./data"
 ):
     val_dataset = MNIST(
